@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
+import VRHeader from './VRHeader'
 
 /* ═══════════════════════════════════════════════════════
    POKEMON DATASET — カントー151匹
@@ -547,102 +548,91 @@ export default function TanaZukan() {
       fontFamily:"'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
       display:'flex', flexDirection:'column',
     }}>
-      <header style={{
-        padding:'10px 16px', borderBottom:'1px solid #1e2640',
-        display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
-        background:'#0b0f1a', position:'sticky', top:0, zIndex:10,
-      }}>
-        <div style={{fontSize:18,fontWeight:700,whiteSpace:'nowrap'}}>📚 たなずかん</div>
+      <VRHeader
+        title="📚 たなずかん"
+        currentApp="tana"
+        version="v0.7"
+        centerSlot={<>
+          {/* Dataset switcher */}
+          <div style={{display:'flex',gap:4,padding:'2px',background:'#0d1320',borderRadius:10,border:'1px solid #1e2640'}}>
+            {DATASET_ORDER.map(did => {
+              const d = DATASETS[did]
+              const active = did === datasetId
+              return (
+                <button key={did} onClick={() => setDatasetId(did)} title={d.name} style={{
+                  padding:'4px 10px',fontSize:11,fontWeight:700,borderRadius:8,cursor:'pointer',border:'none',
+                  background: active ? d.color : 'transparent',
+                  color: active ? '#0b0f1a' : '#8892b0',
+                  transition:'all .15s',
+                }}>
+                  <span style={{marginRight:3}}>{d.emoji}</span>{d.shortName}
+                </button>
+              )
+            })}
+          </div>
 
-        {/* Dataset switcher */}
-        <div style={{display:'flex',gap:4,padding:'2px',background:'#0d1320',borderRadius:10,border:'1px solid #1e2640'}}>
-          {DATASET_ORDER.map(did => {
-            const d = DATASETS[did]
-            const active = did === datasetId
-            return (
-              <button key={did} onClick={() => setDatasetId(did)} title={d.name} style={{
-                padding:'4px 10px',fontSize:11,fontWeight:700,borderRadius:8,cursor:'pointer',border:'none',
-                background: active ? d.color : 'transparent',
-                color: active ? '#0b0f1a' : '#8892b0',
-                transition:'all .15s',
+          {/* Axis switcher */}
+          <div style={{display:'flex',gap:5}}>
+            {ds.axes.map((a,i) => (
+              <button key={a.id} onClick={() => setAxisIdx(i)} style={{
+                padding:'4px 12px',fontSize:11,fontWeight:600,borderRadius:10,cursor:'pointer',
+                border:'none',transition:'all .2s',
+                background:i===axisIdx?'#ffd166':'#1e2640',
+                color:i===axisIdx?'#0b0f1a':'#5a6378',
+              }}>{a.label}</button>
+            ))}
+          </div>
+
+          {/* Search */}
+          <div style={{position:'relative',minWidth:140}}>
+            <input value={searchQuery}
+              onChange={e => {setSearchQuery(e.target.value);setSearchOpen(true)}}
+              onFocus={() => setSearchOpen(true)}
+              placeholder="🔍 検索…"
+              style={{
+                width:'100%',padding:'5px 24px 5px 8px',fontSize:12,
+                background:'#111827',border:`1px solid ${searchQuery?'#ffd166':'#1e2640'}`,
+                borderRadius:8,color:'#e4e8f0',outline:'none',
+              }}/>
+            {searchQuery && <button onClick={() => {setSearchQuery('');setSearchOpen(false)}} style={{
+              position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',
+              background:'none',border:'none',color:'#5a6378',fontSize:10,cursor:'pointer',
+            }}>✕</button>}
+            {searchOpen && searchQuery.trim() && (
+              <div style={{
+                position:'absolute',top:'100%',left:0,marginTop:4,width:240,maxHeight:260,
+                overflowY:'auto',background:'rgba(17,24,39,0.98)',border:'1px solid #ffd16644',
+                borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:20,
               }}>
-                <span style={{marginRight:3}}>{d.emoji}</span>{d.shortName}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Axis switcher */}
-        <div style={{display:'flex',gap:5}}>
-          {ds.axes.map((a,i) => (
-            <button key={a.id} onClick={() => setAxisIdx(i)} style={{
-              padding:'4px 12px',fontSize:11,fontWeight:600,borderRadius:10,cursor:'pointer',
-              border:'none',transition:'all .2s',
-              background:i===axisIdx?'#ffd166':'#1e2640',
-              color:i===axisIdx?'#0b0f1a':'#5a6378',
-            }}>{a.label}</button>
-          ))}
-        </div>
-
-        {/* Search */}
-        <div style={{position:'relative',minWidth:140}}>
-          <input value={searchQuery}
-            onChange={e => {setSearchQuery(e.target.value);setSearchOpen(true)}}
-            onFocus={() => setSearchOpen(true)}
-            placeholder="🔍 検索…"
-            style={{
-              width:'100%',padding:'5px 24px 5px 8px',fontSize:12,
-              background:'#111827',border:`1px solid ${searchQuery?'#ffd166':'#1e2640'}`,
-              borderRadius:8,color:'#e4e8f0',outline:'none',
-            }}/>
-          {searchQuery && <button onClick={() => {setSearchQuery('');setSearchOpen(false)}} style={{
-            position:'absolute',right:4,top:'50%',transform:'translateY(-50%)',
-            background:'none',border:'none',color:'#5a6378',fontSize:10,cursor:'pointer',
-          }}>✕</button>}
-          {searchOpen && searchQuery.trim() && (
-            <div style={{
-              position:'absolute',top:'100%',left:0,marginTop:4,width:240,maxHeight:260,
-              overflowY:'auto',background:'rgba(17,24,39,0.98)',border:'1px solid #ffd16644',
-              borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:20,
-            }}>
-              <div style={{padding:'5px 10px',fontSize:10,color:'#5a6378',borderBottom:'1px solid #1e2640'}}>
-                {searchResults.length}件
-              </div>
-              {searchResults.map(p => (
-                <div key={p.id} onClick={() => handleSearchJump(p)} style={{
-                  padding:'6px 10px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,
-                  borderBottom:'1px solid #111827',fontSize:12,
-                }} onMouseEnter={e => e.currentTarget.style.background='#1a1f35'}
-                   onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                  <span style={{fontSize:14}}>{p.emoji}</span>
-                  <span style={{fontWeight:600}}>{p.name}</span>
-                  <span style={{marginLeft:'auto',fontSize:10,color:ds.itemTextColor(p)}}>
-                    {ds.itemSearchTag(p)}
-                  </span>
+                <div style={{padding:'5px 10px',fontSize:10,color:'#5a6378',borderBottom:'1px solid #1e2640'}}>
+                  {searchResults.length}件
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                {searchResults.map(p => (
+                  <div key={p.id} onClick={() => handleSearchJump(p)} style={{
+                    padding:'6px 10px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,
+                    borderBottom:'1px solid #111827',fontSize:12,
+                  }} onMouseEnter={e => e.currentTarget.style.background='#1a1f35'}
+                     onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                    <span style={{fontSize:14}}>{p.emoji}</span>
+                    <span style={{fontWeight:600}}>{p.name}</span>
+                    <span style={{marginLeft:'auto',fontSize:10,color:ds.itemTextColor(p)}}>
+                      {ds.itemSearchTag(p)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-        <span style={{fontSize:11,color:'#5a6378'}}>{ds.items.length}{datasetId==='pokemon'?'匹':'種'}</span>
-
-        <div style={{display:'flex',gap:4,marginLeft:'auto',alignItems:'center'}}>
+          <span style={{fontSize:11,color:'#5a6378'}}>{ds.items.length}{datasetId==='pokemon'?'匹':'種'}</span>
+        </>}
+        rightSlot={<>
           <button onClick={() => setShowImport(true)} title="CSV インポート" style={btnIcon}>📥 CSV</button>
           <button onClick={handleExport} title="CSV エクスポート" style={btnIcon}>📤 CSV</button>
           <button onClick={() => setShowSettings(true)} title="Tier設定" style={btnIcon}>⚙ Tier</button>
           <button onClick={handleReset} title="現データセットを初期化" style={{...btnIcon, color:'#ef476f'}}>↺</button>
-          <a href="https://osakenpiro.github.io/wakkazukan/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none',marginLeft:6}}>🪐</a>
-          <a href="https://osakenpiro.github.io/banet-map/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🌀</a>
-          <a href="https://osakenpiro.github.io/hyakumasu/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🔢</a>
-          <a href="https://osakenpiro.github.io/vr-akinator/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🧙</a>
-          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.6</span>
-        </div>
-      </header>
+        </>}
+      />
 
       <div style={{flex:1,overflowX:'auto',padding:'8px'}}>
         <table style={{
