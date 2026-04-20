@@ -116,6 +116,7 @@ const LS_KEYS = {
   tiers: `${LS_PREFIX}.tiers`,
   cellOrder: `${LS_PREFIX}.cellOrder`,
   axisIdx: `${LS_PREFIX}.axisIdx`,
+  preservedCols: `${LS_PREFIX}.preservedCols`,  // v0.2 CSV preserved（id→{col:val}）
 }
 
 /* ═══ VR CSV Standard v0.1 primitives (shared with banet-map) ═══ */
@@ -197,12 +198,14 @@ export default function TanaZukan() {
   const [dragOver, setDragOver] = useState(null) // {tier, col, beforePid?}
   const [showSettings, setShowSettings] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [preservedCols, setPreservedCols] = useState(() => loadLS(LS_KEYS.preservedCols, {}))  // v0.2 preserved
 
   // Persist to localStorage
   useEffect(() => { saveLS(LS_KEYS.axisIdx, axisIdx) }, [axisIdx])
   useEffect(() => { saveLS(LS_KEYS.tiers, tiers) }, [tiers])
   useEffect(() => { saveLS(LS_KEYS.tierMap, tierMap) }, [tierMap])
   useEffect(() => { saveLS(LS_KEYS.cellOrder, cellOrder) }, [cellOrder])
+  useEffect(() => { saveLS(LS_KEYS.preservedCols, preservedCols) }, [preservedCols])
 
   const axis = AXES[axisIdx]
   const tierIds = tiers.map(t => t.id)
@@ -318,30 +321,46 @@ export default function TanaZukan() {
     return new Set(searchResults.map(p => p.id))
   }, [searchQuery, searchResults])
 
-  /* ── Export CSV ── */
+  /* ── Export CSV (VR CSV Standard v0.2) ── */
   const handleExport = useCallback(() => {
-    // Build position map: for each pid, find its index in its current cell order
+    // v0.2 knownカラム（pokemon）
+    const KNOWN = ['id','dataset','name','emoji','type','habitat','size','trainer','desc','gems_extended','tier','col_order']
+    // preservedに残ってる未知列を拾う
+    const known = new Set(KNOWN)
+    const extraColsSet = new Set()
+    Object.values(preservedCols || {}).forEach(o => {
+      Object.keys(o || {}).forEach(c => { if (!known.has(c)) extraColsSet.add(c) })
+    })
+    const extraCols = [...extraColsSet].sort()
+    // Trainer fallbackはたなでは空（POKEMONデータにtrainerフィールドなし）
     const rows = POKEMON.map(p => {
       const tier = tierIds.includes(tierMap[p.id]) ? tierMap[p.id] : fallbackTier
       const col = p[axis.key]
       const key = `${tier}|${col}`
       const list = grid[tier]?.[col]?.map(x => x.id) || []
       const idx = list.indexOf(p.id)
-      return {
+      const pres = preservedCols[p.id] || {}
+      const row = {
         id: p.id,
+        dataset: 'pokemon',
         name: p.name,
         emoji: p.emoji,
         type: p.type,
         habitat: p.habitat,
         size: p.size,
+        trainer: pres.trainer || '',
+        desc: pres.desc || '',
+        gems_extended: pres.gems_extended || '',
         tier,
-        col_order: idx >= 0 ? idx : ''
+        col_order: idx >= 0 ? idx : '',
       }
+      extraCols.forEach(c => { row[c] = pres[c] || '' })
+      return row
     })
-    const csv = csvStringify(rows)
+    const csv = '\uFEFF' + csvStringify(rows)
     const ts = new Date().toISOString().slice(0, 10)
-    downloadFile(csv, `tana-zukan-${ts}.csv`)
-  }, [tierMap, grid, tierIds.join(','), fallbackTier, axis.key])
+    downloadFile(csv, `vr_pokemon_tana_${ts}.csv`)
+  }, [tierMap, grid, tierIds.join(','), fallbackTier, axis.key, preservedCols])
 
   /* ── Reset to defaults ── */
   const handleReset = useCallback(() => {
@@ -590,10 +609,19 @@ export default function TanaZukan() {
         <ImportModal
           onClose={() => setShowImport(false)}
           onImport={(rows) => {
-            // Apply tier and col_order from rows
+            // v0.2: dataset列チェック（あれば検証、なければ暗黙でpokemon）
+            const firstRow = rows[0] || {}
+            if (firstRow.dataset && firstRow.dataset !== 'pokemon') {
+              alert(`dataset不一致: CSVは『${firstRow.dataset}』、たなずかんはpokemonのみ対応`)
+              return
+            }
+            // Apply tier and col_order
             const newMap = { ...tierMap }
-            const orderBuckets = {} // {cellKey: [{pid, idx}]}
+            const orderBuckets = {}
             const validTiers = new Set(tiers.map(t => t.id))
+            // v0.2 preserved: tana既知列以外を保持
+            const TANA_KNOWN = new Set(['id','dataset','name','emoji','type','habitat','size','tier','col_order'])
+            const newPreserved = { ...preservedCols }
             rows.forEach(r => {
               const pid = r.id
               if (!POKEMON_BY_ID[pid]) return
@@ -607,8 +635,13 @@ export default function TanaZukan() {
                 if (!orderBuckets[key]) orderBuckets[key] = []
                 orderBuckets[key].push({ pid, idx })
               }
+              // Preserved: 未知列＋わっか由来の既知だが自分が扱わない列
+              const pres = { ...(newPreserved[pid] || {}) }
+              Object.keys(r).forEach(c => {
+                if (!TANA_KNOWN.has(c) && r[c] !== '') pres[c] = r[c]
+              })
+              if (Object.keys(pres).length) newPreserved[pid] = pres
             })
-            // Build new cellOrder
             const newCellOrder = { ...cellOrder }
             Object.entries(orderBuckets).forEach(([key, arr]) => {
               arr.sort((a,b) => a.idx - b.idx)
@@ -616,6 +649,7 @@ export default function TanaZukan() {
             })
             setTierMap(newMap)
             setCellOrder(newCellOrder)
+            setPreservedCols(newPreserved)
             setShowImport(false)
           }}
         />
@@ -757,7 +791,7 @@ function ImportModal({ onClose, onImport }) {
       <div style={modal} onClick={e => e.stopPropagation()}>
         <div style={{display:'flex',alignItems:'center',marginBottom:14}}>
           <div style={{fontSize:16,fontWeight:700}}>📥 CSV インポート</div>
-          <span style={{marginLeft:8,fontSize:10,color:'#5a6378'}}>VR CSV Standard v0.1</span>
+          <span style={{marginLeft:8,fontSize:10,color:'#5a6378'}}>VR CSV Standard v0.2</span>
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
 
@@ -790,8 +824,8 @@ function ImportModal({ onClose, onImport }) {
         )}
 
         <div style={{fontSize:10,color:'#5a6378',marginBottom:12}}>
-          スキーマ: <code style={{color:'#ffd166'}}>id, name, emoji, type, habitat, size, tier, col_order</code><br/>
-          必須: <code>id</code>（POKEMON IDと照合）/ 反映: <code>tier</code>, <code>col_order</code>
+          v0.2スキーマ: <code style={{color:'#ffd166'}}>id, dataset, name, emoji, type, habitat, size, tier, col_order</code><br/>
+          必須: <code>id</code> / 反映: <code>tier</code>, <code>col_order</code> / 未知列は保持（round-trip safe）
         </div>
 
         <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
