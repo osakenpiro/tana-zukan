@@ -91,7 +91,6 @@ const TYPE_COLORS = {
 }
 const HABITAT_EMOJI = { 'もり':'🌲','そうげん':'🌾','やま':'⛰️','みずべ':'💧','うみ':'🌊','どうくつ':'🕳️','まち':'🏙️','レア':'✨' }
 const SIZE_LABELS = { 'xs':'XS','s':'S','m':'M','l':'L','xl':'XL' }
-const SIZE_TO_TIER = { xl:'S', l:'A', m:'B', s:'C', xs:'D' }
 
 const POKEMON_AXES = [
   { id:'type', label:'タイプ別', key:'type', values:['ノーマル','ほのお','みず','くさ','でんき','こおり','かくとう','どく','じめん','エスパー','むし','いわ','ゴースト','ドラゴン'] },
@@ -165,7 +164,7 @@ const DATASETS = {
     tanaOwnCols: ['id','dataset','name','emoji','type','habitat','size','tier','col_order'],
     // export時の基本列（knownCols）— trainer/desc/gems_extended は preservedから復元
     exportKnownCols: ['id','dataset','name','emoji','type','habitat','size','trainer','desc','gems_extended','tier','col_order'],
-    initialTierMap: () => { const m={}; POKEMON.forEach(p => { m[p.id] = SIZE_TO_TIER[p.size] || 'B' }); return m },
+    initialTierMap: () => { const m={}; POKEMON.forEach(p => { m[p.id] = 'B' }); return m },
     buildRow: (p, pres) => ({
       id: p.id, dataset: 'pokemon', name: p.name, emoji: p.emoji,
       type: p.type, habitat: p.habitat, size: p.size,
@@ -340,6 +339,7 @@ export default function TanaZukan() {
   const [dragOver, setDragOver] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showImport, setShowImport] = useState(false)
+  const [editingTierId, setEditingTierId] = useState(null)  // inline tier label edit
 
   useEffect(() => { saveLS(LS_KEYS.datasetId, datasetId) }, [datasetId])
   useEffect(() => { saveLS(LS_KEYS.axisIdx, axisIdxMap) }, [axisIdxMap])
@@ -520,6 +520,12 @@ export default function TanaZukan() {
     setPreservedCols({})
   }, [ds, setTiers, setTierMap, setCellOrder, setPreservedCols])
 
+  const updateTierLabel = useCallback((tierIdToUpdate, newLabel) => {
+    const trimmed = (newLabel || '').slice(0, 10).trim()
+    if (!trimmed) return
+    setTiers(prev => prev.map(t => t.id === tierIdToUpdate ? { ...t, label: trimmed } : t))
+  }, [setTiers])
+
   return (
     <div style={{
       minHeight:'100vh', background:'#0b0f1a', color:'#e4e8f0',
@@ -619,7 +625,7 @@ export default function TanaZukan() {
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🔢</a>
           <a href="https://osakenpiro.github.io/vr-akinator/" target="_blank" rel="noreferrer"
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🧙</a>
-          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.4</span>
+          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.5</span>
         </div>
       </header>
 
@@ -664,11 +670,32 @@ export default function TanaZukan() {
                   }
                   setDragOver(null); setDragItem(null)
                 }}>
-                  <div style={{
-                    fontSize:22,fontWeight:900,color:tier.color,
-                    lineHeight:1,marginBottom:2,
-                    textShadow:`0 0 12px ${tier.color}44`,
-                  }}>{tier.label}</div>
+                  {editingTierId === tier.id ? (
+                    <input
+                      autoFocus
+                      defaultValue={tier.label}
+                      onBlur={e => { updateTierLabel(tier.id, e.target.value); setEditingTierId(null) }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') e.target.blur()
+                        if (e.key === 'Escape') setEditingTierId(null)
+                      }}
+                      style={{
+                        width:'100%',padding:'4px 2px',fontSize:14,fontWeight:900,
+                        color:tier.color,textAlign:'center',background:'#0b0f1a',
+                        border:`2px solid ${tier.color}`,borderRadius:6,outline:'none',
+                      }}
+                    />
+                  ) : (
+                    <div
+                      onDoubleClick={() => setEditingTierId(tier.id)}
+                      title="ダブルクリックで編集"
+                      style={{
+                        fontSize:22,fontWeight:900,color:tier.color,
+                        lineHeight:1,marginBottom:2,cursor:'text',
+                        textShadow:`0 0 12px ${tier.color}44`,
+                        userSelect:'none',
+                      }}>{tier.label}</div>
+                  )}
                   <div style={{fontSize:9,color:'#5a6378'}}>{tierTotals[tier.id]}</div>
                 </td>
                 {axis.values.map(v => {
@@ -678,7 +705,7 @@ export default function TanaZukan() {
                     <td key={v} style={{
                       padding:3,verticalAlign:'top',
                       background: isHoverCell ? withAlpha(tier.color, '25') : '#0d1320',
-                      borderRadius:4,minHeight:40,
+                      borderRadius:4,minHeight:52,
                       transition:'background 0.15s',
                     }}
                     onDragOver={e => {e.preventDefault();setDragOver({tier:tier.id,col:v})}}
@@ -691,7 +718,7 @@ export default function TanaZukan() {
                       if(pid) moveTo(pid, tier.id, v, null)
                       setDragOver(null); setDragItem(null)
                     }}>
-                      <div style={{display:'flex',flexWrap:'wrap',gap:2,minHeight:28}}>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:3,minHeight:44,alignItems:'flex-start'}}>
                         {items.map(p => {
                           const dimmed = searchMatchIds && !searchMatchIds.has(p.id)
                           return (
@@ -717,8 +744,9 @@ export default function TanaZukan() {
                               onClick={() => cycleTier(p.id)}
                               title={`${p.name} — クリックでTier変更 / D&Dで移動・並び替え`}
                               style={{
-                                display:'flex',alignItems:'center',gap:2,
-                                padding:'2px 5px',borderRadius:6,cursor:'grab',
+                                display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+                                width:44,height:44,
+                                padding:2,borderRadius:6,cursor:'grab',
                                 background: dragItem===p.id ? '#ffd16633' : '#111827',
                                 border:`1px solid ${
                                   dimmed?'#1e264033':
@@ -728,10 +756,15 @@ export default function TanaZukan() {
                                 borderLeft: dragOver?.beforePid===p.id ? `3px solid #ffd166` : undefined,
                                 opacity: dimmed ? 0.15 : 1,
                                 transition:'opacity 0.2s, border-color 0.15s',
-                                fontSize:11,whiteSpace:'nowrap',
+                                boxSizing:'border-box',
+                                flexShrink:0,
                               }}>
-                              <span style={{fontSize:13}}>{p.emoji}</span>
-                              <span style={{fontSize:10,color:'#c4c9d4',maxWidth:56,overflow:'hidden',textOverflow:'ellipsis'}}>{p.name}</span>
+                              <span style={{fontSize:20,lineHeight:1}}>{p.emoji}</span>
+                              <span style={{
+                                fontSize:8,lineHeight:1,marginTop:2,color:'#c4c9d4',
+                                width:40,overflow:'hidden',textOverflow:'ellipsis',
+                                whiteSpace:'nowrap',textAlign:'center',
+                              }}>{p.name}</span>
                             </div>
                           )
                         })}
@@ -751,6 +784,7 @@ export default function TanaZukan() {
       }}>
         <span>クリック → Tier変更</span>
         <span>D&D → Tier移動 / セル内並び替え</span>
+        <span>左段ラベルをダブルクリック → Tier名編集</span>
         <span>💾 自動保存中（{ds.shortName}）</span>
         <a href="https://github.com/osakenpiro/tana-zukan" target="_blank" rel="noreferrer"
           style={{marginLeft:'auto',color:'#5a6378',textDecoration:'none'}}>GitHub</a>
