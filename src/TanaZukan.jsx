@@ -160,11 +160,18 @@ const DATASETS = {
     id:'pokemon', name:'ポケモンずかん', emoji:'🎮', color:'#e63946',
     shortName: 'ポケモン',
     items: POKEMON, byId: POKEMON_BY_ID, axes: POKEMON_AXES,
+    defaultTiers: [
+      { id:'XL', label:'XL', color:'#ef476f' },
+      { id:'L',  label:'L',  color:'#ffd166' },
+      { id:'M',  label:'M',  color:'#06d6a0' },
+      { id:'S',  label:'S',  color:'#118ab2' },
+      { id:'XS', label:'XS', color:'#8892b0' },
+    ],
     // 自分（たな）が直接扱う列（import時に preserved へ回さない列）
     tanaOwnCols: ['id','dataset','name','emoji','type','habitat','size','tier','col_order'],
     // export時の基本列（knownCols）— trainer/desc/gems_extended は preservedから復元
     exportKnownCols: ['id','dataset','name','emoji','type','habitat','size','trainer','desc','gems_extended','tier','col_order'],
-    initialTierMap: () => { const m={}; POKEMON.forEach(p => { m[p.id] = 'B' }); return m },
+    initialTierMap: () => { const m={}; POKEMON.forEach(p => { m[p.id] = (p.size || 'm').toUpperCase() }); return m },
     buildRow: (p, pres) => ({
       id: p.id, dataset: 'pokemon', name: p.name, emoji: p.emoji,
       type: p.type, habitat: p.habitat, size: p.size,
@@ -187,6 +194,14 @@ const DATASETS = {
     id:'ikimono', name:'いきものずかん', emoji:'🦠', color:'#7cb342',
     shortName: 'いきもの',
     items: IKIMONO, byId: IKIMONO_BY_ID, axes: IKIMONO_AXES,
+    // ikimono には size情報がないため従来のS/A/B/C/D
+    defaultTiers: [
+      { id:'S', label:'S', color:'#ef476f' },
+      { id:'A', label:'A', color:'#ffd166' },
+      { id:'B', label:'B', color:'#06d6a0' },
+      { id:'C', label:'C', color:'#118ab2' },
+      { id:'D', label:'D', color:'#8892b0' },
+    ],
     tanaOwnCols: ['id','dataset','name','emoji','color','maki','season','pos','tier','col_order'],
     exportKnownCols: ['id','dataset','name','emoji','color','maki','season','pos','latin','subtitle','desc','gems_extended','tier','col_order'],
     initialTierMap: () => { const m={}; IKIMONO.forEach(x => { m[x.id] = 'B' }); return m },
@@ -350,7 +365,7 @@ export default function TanaZukan() {
 
   const ds = DATASETS[datasetId]
   const axisIdx = axisIdxMap[datasetId] ?? 0
-  const tiers = tiersMap[datasetId] || DEFAULT_TIERS
+  const tiers = tiersMap[datasetId] || ds.defaultTiers || DEFAULT_TIERS
   const tierMap = tierMapByDs[datasetId] || ds.initialTierMap()
   const cellOrder = cellOrderByDs[datasetId] || {}
   const preservedCols = preservedByDs[datasetId] || {}
@@ -364,11 +379,11 @@ export default function TanaZukan() {
   }, [datasetId])
   const setTiers = useCallback((updater) => {
     setTiersMap(prev => {
-      const cur = prev[datasetId] || DEFAULT_TIERS
+      const cur = prev[datasetId] || ds.defaultTiers || DEFAULT_TIERS
       const next = typeof updater === 'function' ? updater(cur) : updater
       return { ...prev, [datasetId]: next }
     })
-  }, [datasetId])
+  }, [datasetId, ds])
   const setTierMap = useCallback((updater) => {
     setTierMapByDs(prev => {
       const cur = prev[datasetId] || ds.initialTierMap()
@@ -514,7 +529,7 @@ export default function TanaZukan() {
 
   const handleReset = useCallback(() => {
     if (!confirm(`${ds.shortName}のTier/順序/保持列を初期状態に戻します。よろしいですか？`)) return
-    setTiers(DEFAULT_TIERS)
+    setTiers(ds.defaultTiers || DEFAULT_TIERS)
     setTierMap(ds.initialTierMap())
     setCellOrder({})
     setPreservedCols({})
@@ -625,7 +640,7 @@ export default function TanaZukan() {
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🔢</a>
           <a href="https://osakenpiro.github.io/vr-akinator/" target="_blank" rel="noreferrer"
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🧙</a>
-          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.5</span>
+          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.6</span>
         </div>
       </header>
 
@@ -809,7 +824,7 @@ export default function TanaZukan() {
             const currentTierMap = tierMapByDs[importDatasetId] || targetDs.initialTierMap()
             const currentCellOrder = cellOrderByDs[importDatasetId] || {}
             const currentPreserved = preservedByDs[importDatasetId] || {}
-            const currentTiers = tiersMap[importDatasetId] || DEFAULT_TIERS
+            const currentTiers = tiersMap[importDatasetId] || targetDs.defaultTiers || DEFAULT_TIERS
             const validTiers = new Set(currentTiers.map(t => t.id))
             const localFallback = currentTiers[currentTiers.length - 1].id
             const currentAxisIdx = axisIdxMap[importDatasetId] ?? 0
