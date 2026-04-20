@@ -427,9 +427,13 @@ export default function TanaZukan() {
           <button onClick={() => setShowSettings(true)} title="Tier設定" style={btnIcon}>⚙ Tier</button>
           <button onClick={handleReset} title="初期化" style={{...btnIcon, color:'#ef476f'}}>↺</button>
           <a href="https://osakenpiro.github.io/wakkazukan/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none',marginLeft:6}}>🪐 わっか</a>
+            style={{color:'#8892b0',fontSize:11,textDecoration:'none',marginLeft:6}}>🪐</a>
           <a href="https://osakenpiro.github.io/banet-map/" target="_blank" rel="noreferrer"
-            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🌀 バネット</a>
+            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🌀</a>
+          <a href="https://osakenpiro.github.io/hyakumasu/" target="_blank" rel="noreferrer"
+            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🔢</a>
+          <a href="https://osakenpiro.github.io/vr-akinator/" target="_blank" rel="noreferrer"
+            style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🧙</a>
           <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.2</span>
         </div>
       </header>
