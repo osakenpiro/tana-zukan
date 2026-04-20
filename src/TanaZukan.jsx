@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 
-/* ═══ Pokemon 151 Data ═══ */
+/* ═══════════════════════════════════════════════════════
+   POKEMON DATASET — カントー151匹
+   ═══════════════════════════════════════════════════════ */
 const POKE_RAW = [
 ["p001","フシギダネ","くさ","そうげん","s","🌱"],["p002","フシギソウ","くさ","そうげん","m","🌿"],["p003","フシギバナ","くさ","そうげん","l","🌳"],
 ["p004","ヒトカゲ","ほのお","やま","s","🦎"],["p005","リザード","ほのお","やま","m","🔥"],["p006","リザードン","ほのお","やま","l","🐉"],
@@ -78,9 +80,141 @@ const POKE_RAW = [
 ["p147","ミニリュウ","ドラゴン","みずべ","s","🐍"],["p148","ハクリュー","ドラゴン","みずべ","l","🐲"],["p149","カイリュー","ドラゴン","みずべ","xl","🐉"],
 ["p150","ミュウツー","エスパー","レア","xl","🧬"],["p151","ミュウ","エスパー","レア","xs","✨"],
 ]
-
 const POKEMON = POKE_RAW.map((p, i) => ({ id:p[0], name:p[1], type:p[2], habitat:p[3], size:p[4], emoji:p[5], _idx:i }))
 const POKEMON_BY_ID = Object.fromEntries(POKEMON.map(p => [p.id, p]))
+
+const TYPE_COLORS = {
+  'くさ':'#78c850','ほのお':'#f08030','みず':'#6890f0','むし':'#a8b820',
+  'ノーマル':'#a8a878','どく':'#a040a0','でんき':'#f8d030','じめん':'#e0c068',
+  'かくとう':'#c03028','エスパー':'#f85888','いわ':'#b8a038','ゴースト':'#705898',
+  'ドラゴン':'#7038f8','こおり':'#98d8d8',
+}
+const HABITAT_EMOJI = { 'もり':'🌲','そうげん':'🌾','やま':'⛰️','みずべ':'💧','うみ':'🌊','どうくつ':'🕳️','まち':'🏙️','レア':'✨' }
+const SIZE_LABELS = { 'xs':'XS','s':'S','m':'M','l':'L','xl':'XL' }
+const SIZE_TO_TIER = { xl:'S', l:'A', m:'B', s:'C', xs:'D' }
+
+const POKEMON_AXES = [
+  { id:'type', label:'タイプ別', key:'type', values:['ノーマル','ほのお','みず','くさ','でんき','こおり','かくとう','どく','じめん','エスパー','むし','いわ','ゴースト','ドラゴン'] },
+  { id:'habitat', label:'生息地別', key:'habitat', values:['もり','そうげん','やま','みずべ','うみ','どうくつ','まち','レア'] },
+  { id:'size', label:'サイズ別', key:'size', values:['xs','s','m','l','xl'] },
+]
+
+/* ═══════════════════════════════════════════════════════
+   IKIMONO DATASET — 絵本17巻の生き物たち（現在 第1〜4巻 20キャラ）
+   ═══════════════════════════════════════════════════════ */
+const IKIMONO_RAW = [
+  // ═ 第1巻 きん ═
+  ["k01","サッちゃん","🍞","#e9b44c","きん","しぜん","きずな","Saccharomyces","いちばん ふるい しんゆう","パンとビールをつくる酵母。人類1万年の発酵のパートナー"],
+  ["k02","ラクトさん","🫒","#9cc47c","きん","しぜん","まもり","Lactobacillus","おなかの まもりがみ","乳酸菌。ヨーグルトやぬか漬けをつくり、腸を守る"],
+  ["k03","ペス太","💀","#6d4c41","きん","しぜん","ふたごころ","Yersinia pestis","世界を かえた さいやくの きん","ペスト菌。中世ヨーロッパの人口を1/3にした"],
+  ["k04","テンネン","👾","#7b4a8a","きん","しぜん","ちから","Variola","人類が たおした さいしょの ラスボス","天然痘ウイルス。人類が根絶した唯一の感染症"],
+  ["k05","ファージ先輩","🔬","#3a7ca5","きん","しぜん","せんぱい","Bacteriophage","細菌を たおす ウイルス","バクテリオファージ。地球上で最も多い生命体"],
+  // ═ 第2巻 むし ═
+  ["m01","キヌちゃん","🐛","#d4a574","むし","しぜん","きずな","Bombyx mori","もう ひとりでは いきられない","カイコ。人間に完全依存した家畜化昆虫。絹の原料"],
+  ["m02","ハニーさん","🐝","#f0b000","むし","しぜん","まもり","Apis mellifera","しょくたくの まもりがみ","ミツバチ。受粉者として食卓の1/3を支える"],
+  ["m03","ノミ吉","🦗","#8d4a2b","むし","しぜん","ふたごころ","Pulex irritans","しの はいたつにん","ノミ。ペスト菌の運び屋として歴史を動かした"],
+  ["m04","ハマダラ","🦟","#5d4037","むし","しぜん","ちから","Anopheles","ちきゅうで いちばん 人を ころす いきもの","ハマダラカ。マラリア媒介で年間60万人以上の命を奪う"],
+  ["m05","ゴキ先輩","🪳","#3e2723","むし","しぜん","せんぱい","Periplaneta americana","3億年の サバイバー","ゴキブリ。恐竜より古く、恐竜の絶滅を生き延びた"],
+  // ═ 第3巻 けもの ═
+  ["b01","ワンタ","🐕","#8d6e63","けもの","しぜん","きずな","Canis familiaris","いちばん さいしょの ともだち","イヌ。1万5千年前に最初に家畜化された動物"],
+  ["b02","モーさん","🐄","#a1887f","けもの","しぜん","まもり","Bos taurus","ぶんめいの おかあさん","ウシ。乳・肉・労働力、農業文明の基盤"],
+  ["b03","チュー太","🐀","#616161","けもの","しぜん","ふたごころ","Rattus norvegicus","にんげんの かげ","ドブネズミ。人の影のように都市についてきた"],
+  ["b04","ハヤテ","🐎","#4e342e","けもの","しぜん","ちから","Equus caballus","世界を ひろげた エンジン","ウマ。人類のスピードを飛躍的に拡張した"],
+  ["b05","ミケ先輩","🐈","#bf9b7a","けもの","しぜん","せんぱい","Felis catus","かってに きた、かってに いる","ネコ。自ら人に近づいた半家畜。今もマイペース"],
+  // ═ 第4巻 くさき ═
+  ["p01","ムギちゃん","🌾","#c9a24b","くさき","しぜん","きずな","Triticum aestivum","ぶんめいの たね","ムギ。定住と都市を生んだ最初の主要穀物"],
+  ["p02","イネさん","🌿","#7cb342","くさき","しぜん","まもり","Oryza sativa","アジアの いのちづな","イネ。アジアの人口の半分を養う命綱"],
+  ["p03","ドクニン","🥔","#8e6b3a","くさき","しぜん","ふたごころ","Solanum tuberosum","きぼうと ぜつぼうの いも","ジャガイモ。人類を救い、アイルランド飢饉も起こした"],
+  ["p04","ワタ姫","☁️","#eceff1","くさき","しぜん","ちから","Gossypium","しろい はなの くらい かげ","ワタ。産業革命と奴隷制の両方の主役"],
+  ["p05","トウガラ先輩","🌶️","#c62828","くさき","しぜん","せんぱい","Capsicum","いたいのに たべる、にんげんの ふしぎ","トウガラシ。「痛み=快楽」を生む唯一無二の植物"],
+]
+const IKIMONO = IKIMONO_RAW.map((r, i) => ({
+  id:r[0], name:r[1], emoji:r[2], color:r[3],
+  maki:r[4], season:r[5], pos:r[6],
+  latin:r[7], subtitle:r[8], desc:r[9], _idx:i,
+}))
+const IKIMONO_BY_ID = Object.fromEntries(IKIMONO.map(x => [x.id, x]))
+
+const MAKI_ORDER = ["きん","むし","けもの","くさき","はつめい","かみさま","げんし","ぞうき","そざい","ほし","だいち","しくみ","かず","きもち","ものがたり","げいじゅつ","いじん"]
+const MAKI_EMOJI = {"きん":"🦠","むし":"🐛","けもの":"🐾","くさき":"🌿","はつめい":"💡","かみさま":"⛩️","げんし":"⚛️","ぞうき":"🫁","そざい":"🪨","ほし":"⭐","だいち":"🗺️","しくみ":"⚙️","かず":"🔢","きもち":"💭","ものがたり":"📖","げいじゅつ":"🎨","いじん":"👤"}
+const MAKI_COLOR = {"きん":"#e9b44c","むし":"#8d6e63","けもの":"#a1887f","くさき":"#7cb342","はつめい":"#ff6f00","かみさま":"#7b4a8a","げんし":"#455a64","ぞうき":"#ec407a","そざい":"#78909c","ほし":"#3949ab","だいち":"#5d4037","しくみ":"#00897b","かず":"#546e7a","きもち":"#d81b60","ものがたり":"#6a1b9a","げいじゅつ":"#c0392b","いじん":"#b8860b"}
+
+const SEASON_ORDER = ["しぜん","はつめいとからだ","うちゅうとだいち","しくみとちしき","にんげんのちから"]
+const SEASON_EMOJI = {"しぜん":"🌱","はつめいとからだ":"💡","うちゅうとだいち":"🌌","しくみとちしき":"⚙️","にんげんのちから":"✊"}
+const SEASON_COLOR = {"しぜん":"#7cb342","はつめいとからだ":"#ff6f00","うちゅうとだいち":"#3949ab","しくみとちしき":"#00897b","にんげんのちから":"#c0392b"}
+
+const POSITION_ORDER = ["きずな","まもり","ふたごころ","ちから","せんぱい"]
+const POSITION_EMOJI = {"きずな":"🤝","まもり":"🛡️","ふたごころ":"🎭","ちから":"⚡","せんぱい":"🎓"}
+const POSITION_COLOR = {"きずな":"#2196f3","まもり":"#4caf50","ふたごころ":"#9c27b0","ちから":"#f44336","せんぱい":"#ff9800"}
+
+const IKIMONO_AXES = [
+  { id:'maki',   label:'巻別',         key:'maki',   values: MAKI_ORDER.filter(k => IKIMONO.some(x => x.maki === k)) },
+  { id:'season', label:'シーズン別',   key:'season', values: SEASON_ORDER.filter(k => IKIMONO.some(x => x.season === k)) },
+  { id:'pos',    label:'ポジション別', key:'pos',    values: POSITION_ORDER },
+]
+
+/* ═══════════════════════════════════════════════════════
+   Dataset Registry
+   ═══════════════════════════════════════════════════════ */
+const DATASETS = {
+  pokemon: {
+    id:'pokemon', name:'ポケモンずかん', emoji:'🎮', color:'#e63946',
+    shortName: 'ポケモン',
+    items: POKEMON, byId: POKEMON_BY_ID, axes: POKEMON_AXES,
+    // 自分（たな）が直接扱う列（import時に preserved へ回さない列）
+    tanaOwnCols: ['id','dataset','name','emoji','type','habitat','size','tier','col_order'],
+    // export時の基本列（knownCols）— trainer/desc/gems_extended は preservedから復元
+    exportKnownCols: ['id','dataset','name','emoji','type','habitat','size','trainer','desc','gems_extended','tier','col_order'],
+    initialTierMap: () => { const m={}; POKEMON.forEach(p => { m[p.id] = SIZE_TO_TIER[p.size] || 'B' }); return m },
+    buildRow: (p, pres) => ({
+      id: p.id, dataset: 'pokemon', name: p.name, emoji: p.emoji,
+      type: p.type, habitat: p.habitat, size: p.size,
+      trainer: pres.trainer || '', desc: pres.desc || '', gems_extended: pres.gems_extended || '',
+    }),
+    axisValueColor: (axisId, value) => {
+      if (axisId === 'type') return TYPE_COLORS[value] || '#888'
+      return '#8892b0'
+    },
+    axisValueLabel: (axisId, value) => {
+      if (axisId === 'habitat') return (HABITAT_EMOJI[value] || '') + ' ' + value
+      if (axisId === 'size') return SIZE_LABELS[value] || value
+      return value
+    },
+    itemTextColor: (item) => TYPE_COLORS[item.type] || '#c4c9d4',
+    itemSearchHay: (p) => [p.name, p.id, p.emoji, p.type, p.habitat, p.size].join(' ').toLowerCase(),
+    itemSearchTag: (p) => p.type,
+  },
+  ikimono: {
+    id:'ikimono', name:'いきものずかん', emoji:'🦠', color:'#7cb342',
+    shortName: 'いきもの',
+    items: IKIMONO, byId: IKIMONO_BY_ID, axes: IKIMONO_AXES,
+    tanaOwnCols: ['id','dataset','name','emoji','color','maki','season','pos','tier','col_order'],
+    exportKnownCols: ['id','dataset','name','emoji','color','maki','season','pos','latin','subtitle','desc','gems_extended','tier','col_order'],
+    initialTierMap: () => { const m={}; IKIMONO.forEach(x => { m[x.id] = 'B' }); return m },
+    buildRow: (x, pres) => ({
+      id: x.id, dataset: 'ikimono', name: x.name, emoji: x.emoji, color: x.color || '',
+      maki: x.maki || '', season: x.season || '', pos: x.pos || '',
+      latin: pres.latin || x.latin || '', subtitle: pres.subtitle || x.subtitle || '',
+      desc: pres.desc || x.desc || '', gems_extended: pres.gems_extended || '',
+    }),
+    axisValueColor: (axisId, value) => {
+      if (axisId === 'maki') return MAKI_COLOR[value] || '#888'
+      if (axisId === 'season') return SEASON_COLOR[value] || '#888'
+      if (axisId === 'pos') return POSITION_COLOR[value] || '#888'
+      return '#8892b0'
+    },
+    axisValueLabel: (axisId, value) => {
+      if (axisId === 'maki') return (MAKI_EMOJI[value] || '') + ' ' + value
+      if (axisId === 'season') return (SEASON_EMOJI[value] || '') + ' ' + value
+      if (axisId === 'pos') return (POSITION_EMOJI[value] || '') + ' ' + value
+      return value
+    },
+    itemTextColor: (item) => item.color || '#c4c9d4',
+    itemSearchHay: (x) => [x.name, x.id, x.emoji, x.maki, x.season, x.pos, x.latin, x.subtitle].join(' ').toLowerCase(),
+    itemSearchTag: (x) => x.maki,
+  },
+}
+const DATASET_ORDER = ['pokemon', 'ikimono']
 
 /* ═══ Tier Defaults & Config ═══ */
 const DEFAULT_TIERS = [
@@ -93,33 +227,50 @@ const DEFAULT_TIERS = [
 const MIN_TIERS = 2
 const MAX_TIERS = 8
 const TIER_ID_POOL = 'SABCDEFGHIJ'.split('')
-const SIZE_TO_TIER = { xl:'S', l:'A', m:'B', s:'C', xs:'D' }
 
-const TYPE_COLORS = {
-  'くさ':'#78c850','ほのお':'#f08030','みず':'#6890f0','むし':'#a8b820',
-  'ノーマル':'#a8a878','どく':'#a040a0','でんき':'#f8d030','じめん':'#e0c068',
-  'かくとう':'#c03028','エスパー':'#f85888','いわ':'#b8a038','ゴースト':'#705898',
-  'ドラゴン':'#7038f8','こおり':'#98d8d8',
-}
-
-const AXES = [
-  { id:'type', label:'タイプ別', key:'type', values:['ノーマル','ほのお','みず','くさ','でんき','こおり','かくとう','どく','じめん','エスパー','むし','いわ','ゴースト','ドラゴン'] },
-  { id:'habitat', label:'生息地別', key:'habitat', values:['もり','そうげん','やま','みずべ','うみ','どうくつ','まち','レア'] },
-  { id:'size', label:'サイズ別', key:'size', values:['xs','s','m','l','xl'] },
-]
-const HABITAT_EMOJI = { 'もり':'🌲','そうげん':'🌾','やま':'⛰️','みずべ':'💧','うみ':'🌊','どうくつ':'🕳️','まち':'🏙️','レア':'✨' }
-const SIZE_LABELS = { 'xs':'XS','s':'S','m':'M','l':'L','xl':'XL' }
-
-const LS_PREFIX = 'tanaZukan.v02'
+/* ═══ localStorage ═══ */
+const LS_PREFIX = 'tanaZukan.v04'
 const LS_KEYS = {
-  tierMap: `${LS_PREFIX}.tierMap`,
-  tiers: `${LS_PREFIX}.tiers`,
-  cellOrder: `${LS_PREFIX}.cellOrder`,
-  axisIdx: `${LS_PREFIX}.axisIdx`,
-  preservedCols: `${LS_PREFIX}.preservedCols`,  // v0.2 CSV preserved（id→{col:val}）
+  datasetId:    `${LS_PREFIX}.datasetId`,
+  axisIdx:      `${LS_PREFIX}.axisIdx`,
+  tiers:        `${LS_PREFIX}.tiers`,
+  tierMap:      `${LS_PREFIX}.tierMap`,
+  cellOrder:    `${LS_PREFIX}.cellOrder`,
+  preservedCols:`${LS_PREFIX}.preservedCols`,
 }
 
-/* ═══ VR CSV Standard v0.1 primitives (shared with banet-map) ═══ */
+function loadLS(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return fallback
+    return JSON.parse(raw)
+  } catch { return fallback }
+}
+function saveLS(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)) } catch {}
+}
+
+/* v0.2 → v0.4 マイグレーション（旧データはpokemonとして扱う） */
+function migrateFromV02() {
+  try {
+    if (typeof localStorage === 'undefined') return
+    if (localStorage.getItem(LS_KEYS.tierMap)) return
+    const oldTierMap = loadLS('tanaZukan.v02.tierMap', null)
+    if (!oldTierMap) return
+    const oldTiers = loadLS('tanaZukan.v02.tiers', null)
+    const oldCellOrder = loadLS('tanaZukan.v02.cellOrder', null)
+    const oldAxisIdx = loadLS('tanaZukan.v02.axisIdx', null)
+    const oldPreserved = loadLS('tanaZukan.v02.preservedCols', null)
+    saveLS(LS_KEYS.tierMap, { pokemon: oldTierMap })
+    if (oldTiers) saveLS(LS_KEYS.tiers, { pokemon: oldTiers })
+    if (oldCellOrder) saveLS(LS_KEYS.cellOrder, { pokemon: oldCellOrder })
+    if (oldAxisIdx != null) saveLS(LS_KEYS.axisIdx, { pokemon: oldAxisIdx })
+    if (oldPreserved) saveLS(LS_KEYS.preservedCols, { pokemon: oldPreserved })
+  } catch {}
+}
+if (typeof window !== 'undefined') migrateFromV02()
+
+/* ═══ VR CSV Standard v0.2 primitives ═══ */
 function csvStringify(rows) {
   if (!rows.length) return ''
   const cols = Object.keys(rows[0])
@@ -131,6 +282,7 @@ function csvStringify(rows) {
   return [cols.map(escape).join(','), ...rows.map(r => cols.map(c => escape(r[c])).join(','))].join('\n')
 }
 function csvParse(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
   const lines = []; let cur = ''; let inQ = false
   for (const ch of text) {
     if (ch === '"') { inQ = !inQ; cur += ch }
@@ -166,74 +318,100 @@ function downloadFile(content, filename) {
   URL.revokeObjectURL(url)
 }
 
-/* ═══ Utilities ═══ */
-const withAlpha = (hex, alpha='15') => hex + alpha // append hex alpha (e.g. 15 = ~8%)
+const withAlpha = (hex, alpha='15') => hex + alpha
 
-function loadLS(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key)
-    if (!raw) return fallback
-    return JSON.parse(raw)
-  } catch { return fallback }
-}
-function saveLS(key, val) {
-  try { localStorage.setItem(key, JSON.stringify(val)) } catch {}
-}
-
-function initialTierMap() {
-  const m = {}
-  POKEMON.forEach(p => { m[p.id] = SIZE_TO_TIER[p.size] || 'B' })
-  return m
-}
-
-/* ═══ Main Component ═══ */
+/* ═══════════════════════════════════════════════════════
+   Main Component
+   ═══════════════════════════════════════════════════════ */
 export default function TanaZukan() {
-  const [axisIdx, setAxisIdx] = useState(() => loadLS(LS_KEYS.axisIdx, 0))
-  const [tiers, setTiers] = useState(() => loadLS(LS_KEYS.tiers, DEFAULT_TIERS))
-  const [tierMap, setTierMap] = useState(() => loadLS(LS_KEYS.tierMap, initialTierMap()))
-  const [cellOrder, setCellOrder] = useState(() => loadLS(LS_KEYS.cellOrder, {})) // {cellKey: [pid,...]}
+  const [datasetId, setDatasetId] = useState(() => {
+    const v = loadLS(LS_KEYS.datasetId, 'pokemon')
+    return DATASETS[v] ? v : 'pokemon'
+  })
+  const [axisIdxMap, setAxisIdxMap] = useState(() => loadLS(LS_KEYS.axisIdx, {}))
+  const [tiersMap, setTiersMap] = useState(() => loadLS(LS_KEYS.tiers, {}))
+  const [tierMapByDs, setTierMapByDs] = useState(() => loadLS(LS_KEYS.tierMap, {}))
+  const [cellOrderByDs, setCellOrderByDs] = useState(() => loadLS(LS_KEYS.cellOrder, {}))
+  const [preservedByDs, setPreservedByDs] = useState(() => loadLS(LS_KEYS.preservedCols, {}))
+
   const [searchQuery, setSearchQuery] = useState('')
   const [searchOpen, setSearchOpen] = useState(false)
   const [dragItem, setDragItem] = useState(null)
-  const [dragOver, setDragOver] = useState(null) // {tier, col, beforePid?}
+  const [dragOver, setDragOver] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [preservedCols, setPreservedCols] = useState(() => loadLS(LS_KEYS.preservedCols, {}))  // v0.2 preserved
 
-  // Persist to localStorage
-  useEffect(() => { saveLS(LS_KEYS.axisIdx, axisIdx) }, [axisIdx])
-  useEffect(() => { saveLS(LS_KEYS.tiers, tiers) }, [tiers])
-  useEffect(() => { saveLS(LS_KEYS.tierMap, tierMap) }, [tierMap])
-  useEffect(() => { saveLS(LS_KEYS.cellOrder, cellOrder) }, [cellOrder])
-  useEffect(() => { saveLS(LS_KEYS.preservedCols, preservedCols) }, [preservedCols])
+  useEffect(() => { saveLS(LS_KEYS.datasetId, datasetId) }, [datasetId])
+  useEffect(() => { saveLS(LS_KEYS.axisIdx, axisIdxMap) }, [axisIdxMap])
+  useEffect(() => { saveLS(LS_KEYS.tiers, tiersMap) }, [tiersMap])
+  useEffect(() => { saveLS(LS_KEYS.tierMap, tierMapByDs) }, [tierMapByDs])
+  useEffect(() => { saveLS(LS_KEYS.cellOrder, cellOrderByDs) }, [cellOrderByDs])
+  useEffect(() => { saveLS(LS_KEYS.preservedCols, preservedByDs) }, [preservedByDs])
 
-  const axis = AXES[axisIdx]
+  const ds = DATASETS[datasetId]
+  const axisIdx = axisIdxMap[datasetId] ?? 0
+  const tiers = tiersMap[datasetId] || DEFAULT_TIERS
+  const tierMap = tierMapByDs[datasetId] || ds.initialTierMap()
+  const cellOrder = cellOrderByDs[datasetId] || {}
+  const preservedCols = preservedByDs[datasetId] || {}
+
+  const axis = ds.axes[Math.min(axisIdx, ds.axes.length - 1)]
   const tierIds = tiers.map(t => t.id)
   const fallbackTier = tierIds[tierIds.length - 1]
 
-  // VR共通検索
+  const setAxisIdx = useCallback((i) => {
+    setAxisIdxMap(prev => ({ ...prev, [datasetId]: i }))
+  }, [datasetId])
+  const setTiers = useCallback((updater) => {
+    setTiersMap(prev => {
+      const cur = prev[datasetId] || DEFAULT_TIERS
+      const next = typeof updater === 'function' ? updater(cur) : updater
+      return { ...prev, [datasetId]: next }
+    })
+  }, [datasetId])
+  const setTierMap = useCallback((updater) => {
+    setTierMapByDs(prev => {
+      const cur = prev[datasetId] || ds.initialTierMap()
+      const next = typeof updater === 'function' ? updater(cur) : updater
+      return { ...prev, [datasetId]: next }
+    })
+  }, [datasetId, ds])
+  const setCellOrder = useCallback((updater) => {
+    setCellOrderByDs(prev => {
+      const cur = prev[datasetId] || {}
+      const next = typeof updater === 'function' ? updater(cur) : updater
+      return { ...prev, [datasetId]: next }
+    })
+  }, [datasetId])
+  const setPreservedCols = useCallback((updater) => {
+    setPreservedByDs(prev => {
+      const cur = prev[datasetId] || {}
+      const next = typeof updater === 'function' ? updater(cur) : updater
+      return { ...prev, [datasetId]: next }
+    })
+  }, [datasetId])
+
+  useEffect(() => {
+    if (axisIdx >= ds.axes.length) setAxisIdx(0)
+  }, [datasetId, ds.axes.length, axisIdx, setAxisIdx])
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return []
     const q = searchQuery.trim().toLowerCase()
-    return POKEMON.filter(p => {
-      const hay = [p.name, p.id, p.emoji, p.type, p.habitat, p.size].join(' ').toLowerCase()
-      return hay.includes(q)
-    }).slice(0, 12)
-  }, [searchQuery])
+    return ds.items.filter(p => ds.itemSearchHay(p).includes(q)).slice(0, 12)
+  }, [searchQuery, ds])
 
-  // Grid data: tier × column → items (sorted by cellOrder then POKEMON._idx)
   const grid = useMemo(() => {
     const g = {}
     tiers.forEach(t => {
       g[t.id] = {}
       axis.values.forEach(v => { g[t.id][v] = [] })
     })
-    POKEMON.forEach(p => {
+    ds.items.forEach(p => {
       const tier = tierIds.includes(tierMap[p.id]) ? tierMap[p.id] : fallbackTier
       const col = p[axis.key]
       if (g[tier] && g[tier][col]) g[tier][col].push(p)
     })
-    // Sort each cell by cellOrder then _idx
     Object.keys(g).forEach(t => {
       Object.keys(g[t]).forEach(c => {
         const key = `${t}|${c}`
@@ -248,7 +426,7 @@ export default function TanaZukan() {
       })
     })
     return g
-  }, [tierMap, axisIdx, tiers, cellOrder, axis.key, axis.values, tierIds.join(','), fallbackTier])
+  }, [ds, tierMap, axis.key, axis.values, tiers, cellOrder, tierIds.join(','), fallbackTier])
 
   const colTotals = useMemo(() => {
     const t = {}
@@ -256,7 +434,7 @@ export default function TanaZukan() {
       t[v] = tiers.reduce((sum, tier) => sum + (grid[tier.id]?.[v]?.length || 0), 0)
     })
     return t
-  }, [grid, axisIdx, tiers])
+  }, [grid, axis, tiers])
 
   const tierTotals = useMemo(() => {
     const t = {}
@@ -264,7 +442,7 @@ export default function TanaZukan() {
       t[tier.id] = axis.values.reduce((sum, v) => sum + (grid[tier.id]?.[v]?.length || 0), 0)
     })
     return t
-  }, [grid, axisIdx, tiers])
+  }, [grid, axis, tiers])
 
   const cycleTier = useCallback((pid) => {
     setTierMap(prev => {
@@ -273,34 +451,24 @@ export default function TanaZukan() {
       const next = tierIds[(idx + 1) % tierIds.length]
       return { ...prev, [pid]: next }
     })
-  }, [tierIds.join(','), fallbackTier])
+  }, [tierIds.join(','), fallbackTier, setTierMap])
 
-  // Move pid to (destTier, destCol) at position index (or end if undefined)
   const moveTo = useCallback((pid, destTier, destCol, beforePid) => {
-    const p = POKEMON_BY_ID[pid]
+    const p = ds.byId[pid]
     if (!p) return
     const srcTier = tierIds.includes(tierMap[pid]) ? tierMap[pid] : fallbackTier
     const srcCol = p[axis.key]
-
     setTierMap(prev => ({ ...prev, [pid]: destTier }))
-
     setCellOrder(prev => {
       const next = { ...prev }
       const srcKey = `${srcTier}|${srcCol}`
       const destKey = `${destTier}|${destCol}`
-
-      // Remove from src
-      const srcList = (next[srcKey] || grid[srcTier]?.[srcCol]?.map(x=>x.id) || []).filter(x => x !== pid)
+      const srcList = (next[srcKey] || grid[srcTier]?.[srcCol]?.map(x => x.id) || []).filter(x => x !== pid)
       next[srcKey] = srcList
-
-      // Build dest list
       const destCurrent = grid[destTier]?.[destCol]?.map(x => x.id) || []
       let destList = next[destKey] || destCurrent
       destList = destList.filter(x => x !== pid)
-      // Ensure all current dest items are in the list (new items fall into play)
       destCurrent.forEach(id => { if (id !== pid && !destList.includes(id)) destList.push(id) })
-
-      // Insert at position
       if (beforePid && destList.includes(beforePid)) {
         const at = destList.indexOf(beforePid)
         destList.splice(at, 0, pid)
@@ -310,7 +478,7 @@ export default function TanaZukan() {
       next[destKey] = destList
       return next
     })
-  }, [tierMap, axis.key, grid, tierIds.join(','), fallbackTier])
+  }, [ds, tierMap, axis.key, grid, tierIds.join(','), fallbackTier, setTierMap, setCellOrder])
 
   const handleSearchJump = useCallback(() => {
     setSearchQuery(''); setSearchOpen(false)
@@ -321,56 +489,36 @@ export default function TanaZukan() {
     return new Set(searchResults.map(p => p.id))
   }, [searchQuery, searchResults])
 
-  /* ── Export CSV (VR CSV Standard v0.2) ── */
   const handleExport = useCallback(() => {
-    // v0.2 knownカラム（pokemon）
-    const KNOWN = ['id','dataset','name','emoji','type','habitat','size','trainer','desc','gems_extended','tier','col_order']
-    // preservedに残ってる未知列を拾う
-    const known = new Set(KNOWN)
+    const known = new Set(ds.exportKnownCols)
     const extraColsSet = new Set()
     Object.values(preservedCols || {}).forEach(o => {
       Object.keys(o || {}).forEach(c => { if (!known.has(c)) extraColsSet.add(c) })
     })
     const extraCols = [...extraColsSet].sort()
-    // Trainer fallbackはたなでは空（POKEMONデータにtrainerフィールドなし）
-    const rows = POKEMON.map(p => {
+    const rows = ds.items.map(p => {
       const tier = tierIds.includes(tierMap[p.id]) ? tierMap[p.id] : fallbackTier
       const col = p[axis.key]
-      const key = `${tier}|${col}`
       const list = grid[tier]?.[col]?.map(x => x.id) || []
       const idx = list.indexOf(p.id)
       const pres = preservedCols[p.id] || {}
-      const row = {
-        id: p.id,
-        dataset: 'pokemon',
-        name: p.name,
-        emoji: p.emoji,
-        type: p.type,
-        habitat: p.habitat,
-        size: p.size,
-        trainer: pres.trainer || '',
-        desc: pres.desc || '',
-        gems_extended: pres.gems_extended || '',
-        tier,
-        col_order: idx >= 0 ? idx : '',
-      }
+      const base = ds.buildRow(p, pres)
+      const row = { ...base, tier, col_order: idx >= 0 ? idx : '' }
       extraCols.forEach(c => { row[c] = pres[c] || '' })
       return row
     })
     const csv = '\uFEFF' + csvStringify(rows)
     const ts = new Date().toISOString().slice(0, 10)
-    downloadFile(csv, `vr_pokemon_tana_${ts}.csv`)
-  }, [tierMap, grid, tierIds.join(','), fallbackTier, axis.key, preservedCols])
+    downloadFile(csv, `vr_${datasetId}_tana_${ts}.csv`)
+  }, [ds, datasetId, tierMap, grid, tierIds.join(','), fallbackTier, axis.key, preservedCols])
 
-  /* ── Reset to defaults ── */
   const handleReset = useCallback(() => {
-    if (!confirm('Tier/順序を初期状態に戻します。よろしいですか？')) return
+    if (!confirm(`${ds.shortName}のTier/順序/保持列を初期状態に戻します。よろしいですか？`)) return
     setTiers(DEFAULT_TIERS)
-    setTierMap(initialTierMap())
+    setTierMap(ds.initialTierMap())
     setCellOrder({})
-  }, [])
-
-  const supportedByCurrentAxis = axis.values
+    setPreservedCols({})
+  }, [ds, setTiers, setTierMap, setCellOrder, setPreservedCols])
 
   return (
     <div style={{
@@ -378,7 +526,6 @@ export default function TanaZukan() {
       fontFamily:"'Zen Kaku Gothic New','Noto Sans JP',system-ui,sans-serif",
       display:'flex', flexDirection:'column',
     }}>
-      {/* ═══ Header ═══ */}
       <header style={{
         padding:'10px 16px', borderBottom:'1px solid #1e2640',
         display:'flex', alignItems:'center', gap:10, flexWrap:'wrap',
@@ -386,9 +533,27 @@ export default function TanaZukan() {
       }}>
         <div style={{fontSize:18,fontWeight:700,whiteSpace:'nowrap'}}>📚 たなずかん</div>
 
+        {/* Dataset switcher */}
+        <div style={{display:'flex',gap:4,padding:'2px',background:'#0d1320',borderRadius:10,border:'1px solid #1e2640'}}>
+          {DATASET_ORDER.map(did => {
+            const d = DATASETS[did]
+            const active = did === datasetId
+            return (
+              <button key={did} onClick={() => setDatasetId(did)} title={d.name} style={{
+                padding:'4px 10px',fontSize:11,fontWeight:700,borderRadius:8,cursor:'pointer',border:'none',
+                background: active ? d.color : 'transparent',
+                color: active ? '#0b0f1a' : '#8892b0',
+                transition:'all .15s',
+              }}>
+                <span style={{marginRight:3}}>{d.emoji}</span>{d.shortName}
+              </button>
+            )
+          })}
+        </div>
+
         {/* Axis switcher */}
         <div style={{display:'flex',gap:5}}>
-          {AXES.map((a,i) => (
+          {ds.axes.map((a,i) => (
             <button key={a.id} onClick={() => setAxisIdx(i)} style={{
               padding:'4px 12px',fontSize:11,fontWeight:600,borderRadius:10,cursor:'pointer',
               border:'none',transition:'all .2s',
@@ -415,7 +580,7 @@ export default function TanaZukan() {
           }}>✕</button>}
           {searchOpen && searchQuery.trim() && (
             <div style={{
-              position:'absolute',top:'100%',left:0,marginTop:4,width:220,maxHeight:260,
+              position:'absolute',top:'100%',left:0,marginTop:4,width:240,maxHeight:260,
               overflowY:'auto',background:'rgba(17,24,39,0.98)',border:'1px solid #ffd16644',
               borderRadius:10,boxShadow:'0 8px 32px rgba(0,0,0,0.5)',zIndex:20,
             }}>
@@ -430,21 +595,22 @@ export default function TanaZukan() {
                    onMouseLeave={e => e.currentTarget.style.background='transparent'}>
                   <span style={{fontSize:14}}>{p.emoji}</span>
                   <span style={{fontWeight:600}}>{p.name}</span>
-                  <span style={{marginLeft:'auto',fontSize:10,color:TYPE_COLORS[p.type]||'#888'}}>{p.type}</span>
+                  <span style={{marginLeft:'auto',fontSize:10,color:ds.itemTextColor(p)}}>
+                    {ds.itemSearchTag(p)}
+                  </span>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        <span style={{fontSize:11,color:'#5a6378'}}>{POKEMON.length}匹</span>
+        <span style={{fontSize:11,color:'#5a6378'}}>{ds.items.length}{datasetId==='pokemon'?'匹':'種'}</span>
 
-        {/* Toolbar */}
         <div style={{display:'flex',gap:4,marginLeft:'auto',alignItems:'center'}}>
           <button onClick={() => setShowImport(true)} title="CSV インポート" style={btnIcon}>📥 CSV</button>
           <button onClick={handleExport} title="CSV エクスポート" style={btnIcon}>📤 CSV</button>
           <button onClick={() => setShowSettings(true)} title="Tier設定" style={btnIcon}>⚙ Tier</button>
-          <button onClick={handleReset} title="初期化" style={{...btnIcon, color:'#ef476f'}}>↺</button>
+          <button onClick={handleReset} title="現データセットを初期化" style={{...btnIcon, color:'#ef476f'}}>↺</button>
           <a href="https://osakenpiro.github.io/wakkazukan/" target="_blank" rel="noreferrer"
             style={{color:'#8892b0',fontSize:11,textDecoration:'none',marginLeft:6}}>🪐</a>
           <a href="https://osakenpiro.github.io/banet-map/" target="_blank" rel="noreferrer"
@@ -453,11 +619,10 @@ export default function TanaZukan() {
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🔢</a>
           <a href="https://osakenpiro.github.io/vr-akinator/" target="_blank" rel="noreferrer"
             style={{color:'#8892b0',fontSize:11,textDecoration:'none'}}>🧙</a>
-          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.2</span>
+          <span style={{fontSize:10,padding:'3px 8px',background:'#ffd166',color:'#0b0f1a',borderRadius:10,fontWeight:700}}>v0.4</span>
         </div>
       </header>
 
-      {/* ═══ Grid ═══ */}
       <div style={{flex:1,overflowX:'auto',padding:'8px'}}>
         <table style={{
           borderCollapse:'separate',borderSpacing:2,width:'100%',minWidth:800,
@@ -466,16 +631,15 @@ export default function TanaZukan() {
           <thead>
             <tr>
               <th style={{width:52,padding:4}}/>
-              {supportedByCurrentAxis.map(v => {
-                const colColor = axis.id==='type' ? (TYPE_COLORS[v]||'#888') : '#8892b0'
+              {axis.values.map(v => {
+                const colColor = ds.axisValueColor(axis.id, v)
                 return (
                   <th key={v} style={{
                     padding:'6px 4px',fontSize:11,fontWeight:700,color:colColor,
                     textAlign:'center',background:'#111827',borderRadius:6,
                     position:'relative',
                   }}>
-                    {axis.id==='habitat' && <span style={{marginRight:3}}>{HABITAT_EMOJI[v]||''}</span>}
-                    {axis.id==='size' ? SIZE_LABELS[v] : v}
+                    {ds.axisValueLabel(axis.id, v)}
                     <div style={{fontSize:9,color:'#5a6378',fontWeight:400}}>{colTotals[v]}</div>
                   </th>
                 )
@@ -494,9 +658,8 @@ export default function TanaZukan() {
                 onDrop={e => {
                   e.preventDefault()
                   const pid = e.dataTransfer.getData('text/plain')
-                  // Drop on tier label → move to end of first column cell of this tier
                   if(pid) {
-                    const p = POKEMON_BY_ID[pid]
+                    const p = ds.byId[pid]
                     if (p) moveTo(pid, tier.id, p[axis.key], null)
                   }
                   setDragOver(null); setDragItem(null)
@@ -508,7 +671,7 @@ export default function TanaZukan() {
                   }}>{tier.label}</div>
                   <div style={{fontSize:9,color:'#5a6378'}}>{tierTotals[tier.id]}</div>
                 </td>
-                {supportedByCurrentAxis.map(v => {
+                {axis.values.map(v => {
                   const items = grid[tier.id]?.[v] || []
                   const isHoverCell = dragOver?.tier===tier.id && dragOver?.col===v
                   return (
@@ -520,7 +683,6 @@ export default function TanaZukan() {
                     }}
                     onDragOver={e => {e.preventDefault();setDragOver({tier:tier.id,col:v})}}
                     onDragLeave={e => {
-                      // Only clear if leaving to outside td
                       if (!e.currentTarget.contains(e.relatedTarget)) setDragOver(null)
                     }}
                     onDrop={e => {
@@ -553,7 +715,7 @@ export default function TanaZukan() {
                                 setDragOver(null); setDragItem(null)
                               }}
                               onClick={() => cycleTier(p.id)}
-                              title={`${p.name} (${p.type}) — クリックでTier変更 / D&Dで移動・並び替え`}
+                              title={`${p.name} — クリックでTier変更 / D&Dで移動・並び替え`}
                               style={{
                                 display:'flex',alignItems:'center',gap:2,
                                 padding:'2px 5px',borderRadius:6,cursor:'grab',
@@ -583,19 +745,17 @@ export default function TanaZukan() {
         </table>
       </div>
 
-      {/* ═══ Footer ═══ */}
       <footer style={{
         padding:'8px 16px',borderTop:'1px solid #1e2640',
         display:'flex',alignItems:'center',gap:16,fontSize:10,color:'#5a6378',flexWrap:'wrap',
       }}>
         <span>クリック → Tier変更</span>
         <span>D&D → Tier移動 / セル内並び替え</span>
-        <span>💾 自動保存中</span>
+        <span>💾 自動保存中（{ds.shortName}）</span>
         <a href="https://github.com/osakenpiro/tana-zukan" target="_blank" rel="noreferrer"
           style={{marginLeft:'auto',color:'#5a6378',textDecoration:'none'}}>GitHub</a>
       </footer>
 
-      {/* ═══ Settings Modal ═══ */}
       {showSettings && (
         <SettingsModal
           tiers={tiers} setTiers={setTiers}
@@ -604,52 +764,55 @@ export default function TanaZukan() {
         />
       )}
 
-      {/* ═══ Import Modal ═══ */}
       {showImport && (
         <ImportModal
+          currentDatasetId={datasetId}
           onClose={() => setShowImport(false)}
-          onImport={(rows) => {
-            // v0.2: dataset列チェック（あれば検証、なければ暗黙でpokemon）
-            const firstRow = rows[0] || {}
-            if (firstRow.dataset && firstRow.dataset !== 'pokemon') {
-              alert(`dataset不一致: CSVは『${firstRow.dataset}』、たなずかんはpokemonのみ対応`)
-              return
-            }
-            // Apply tier and col_order
-            const newMap = { ...tierMap }
+          onDatasetSwitch={(newDid) => setDatasetId(newDid)}
+          onImport={(rows, importDatasetId) => {
+            const targetDs = DATASETS[importDatasetId]
+            if (!targetDs) { alert('未知のdataset: ' + importDatasetId); return }
+            const currentTierMap = tierMapByDs[importDatasetId] || targetDs.initialTierMap()
+            const currentCellOrder = cellOrderByDs[importDatasetId] || {}
+            const currentPreserved = preservedByDs[importDatasetId] || {}
+            const currentTiers = tiersMap[importDatasetId] || DEFAULT_TIERS
+            const validTiers = new Set(currentTiers.map(t => t.id))
+            const localFallback = currentTiers[currentTiers.length - 1].id
+            const currentAxisIdx = axisIdxMap[importDatasetId] ?? 0
+            const currentAxis = targetDs.axes[Math.min(currentAxisIdx, targetDs.axes.length - 1)]
+
+            const newMap = { ...currentTierMap }
             const orderBuckets = {}
-            const validTiers = new Set(tiers.map(t => t.id))
-            // v0.2 preserved: tana既知列以外を保持
-            const TANA_KNOWN = new Set(['id','dataset','name','emoji','type','habitat','size','tier','col_order'])
-            const newPreserved = { ...preservedCols }
+            const TANA_KNOWN = new Set(targetDs.tanaOwnCols)
+            const newPreserved = { ...currentPreserved }
+
             rows.forEach(r => {
               const pid = r.id
-              if (!POKEMON_BY_ID[pid]) return
-              const tier = validTiers.has(r.tier) ? r.tier : fallbackTier
+              if (!targetDs.byId[pid]) return
+              const tier = validTiers.has(r.tier) ? r.tier : localFallback
               newMap[pid] = tier
-              const p = POKEMON_BY_ID[pid]
-              const col = p[axis.key]
+              const p = targetDs.byId[pid]
+              const col = p[currentAxis.key]
               const idx = r.col_order !== '' && r.col_order != null ? Number(r.col_order) : null
               if (idx != null && !Number.isNaN(idx)) {
                 const key = `${tier}|${col}`
                 if (!orderBuckets[key]) orderBuckets[key] = []
                 orderBuckets[key].push({ pid, idx })
               }
-              // Preserved: 未知列＋わっか由来の既知だが自分が扱わない列
               const pres = { ...(newPreserved[pid] || {}) }
               Object.keys(r).forEach(c => {
                 if (!TANA_KNOWN.has(c) && r[c] !== '') pres[c] = r[c]
               })
               if (Object.keys(pres).length) newPreserved[pid] = pres
             })
-            const newCellOrder = { ...cellOrder }
+            const newCellOrder = { ...currentCellOrder }
             Object.entries(orderBuckets).forEach(([key, arr]) => {
               arr.sort((a,b) => a.idx - b.idx)
               newCellOrder[key] = arr.map(x => x.pid)
             })
-            setTierMap(newMap)
-            setCellOrder(newCellOrder)
-            setPreservedCols(newPreserved)
+            setTierMapByDs(prev => ({ ...prev, [importDatasetId]: newMap }))
+            setCellOrderByDs(prev => ({ ...prev, [importDatasetId]: newCellOrder }))
+            setPreservedByDs(prev => ({ ...prev, [importDatasetId]: newPreserved }))
             setShowImport(false)
           }}
         />
@@ -686,7 +849,6 @@ function SettingsModal({ tiers, setTiers, tierMap, setTierMap, onClose }) {
   }
 
   const apply = () => {
-    // Migrate tierMap: any pid in removed tier → last remaining tier
     const newIds = new Set(draft.map(t => t.id))
     const fallback = draft[draft.length - 1].id
     const newMap = {}
@@ -706,7 +868,7 @@ function SettingsModal({ tiers, setTiers, tierMap, setTierMap, onClose }) {
           <button onClick={onClose} style={closeBtn}>✕</button>
         </div>
         <div style={{fontSize:11,color:'#5a6378',marginBottom:12}}>
-          段数 {MIN_TIERS}〜{MAX_TIERS}。削除されたTierの駒は最下段へ自動移動。
+          段数 {MIN_TIERS}〜{MAX_TIERS}。削除されたTierの駒は最下段へ自動移動。Tier設定は現在のデータセットのみに適用されます。
         </div>
         <div style={{display:'flex',flexDirection:'column',gap:6}}>
           {draft.map((t, i) => (
@@ -752,20 +914,31 @@ function SettingsModal({ tiers, setTiers, tierMap, setTierMap, onClose }) {
 }
 
 /* ═══ Import Modal ═══ */
-function ImportModal({ onClose, onImport }) {
+function ImportModal({ currentDatasetId, onClose, onImport, onDatasetSwitch }) {
   const [rows, setRows] = useState(null)
   const [filename, setFilename] = useState('')
   const [error, setError] = useState('')
+  const [detectedDataset, setDetectedDataset] = useState(null)
 
   const handleFile = (file) => {
-    setError('')
+    setError(''); setRows(null); setDetectedDataset(null)
     const reader = new FileReader()
     reader.onload = () => {
       try {
         const parsed = csvParse(String(reader.result))
         if (!parsed.length) { setError('空のCSVです'); return }
         if (!parsed[0].id) { setError('id カラムが見つかりません'); return }
+        const ds = (parsed[0].dataset || '').trim()
+        if (!ds) {
+          setError('dataset列が必要です（VR CSV Standard v0.2）')
+          return
+        }
+        if (!DATASETS[ds]) {
+          setError(`未対応のdataset『${ds}』（対応: pokemon, ikimono）`)
+          return
+        }
         setRows(parsed)
+        setDetectedDataset(ds)
         setFilename(file.name)
       } catch (e) { setError('パースエラー: ' + e.message) }
     }
@@ -785,6 +958,14 @@ function ImportModal({ onClose, onImport }) {
     const hasOrder = rows.filter(r => r.col_order !== '' && r.col_order != null).length
     return { total: rows.length, hasId, hasTier, hasOrder }
   }, [rows])
+
+  const datasetMismatch = detectedDataset && detectedDataset !== currentDatasetId
+
+  const doImport = () => {
+    if (!rows || !detectedDataset) return
+    if (datasetMismatch) onDatasetSwitch(detectedDataset)
+    onImport(rows, detectedDataset)
+  }
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -812,31 +993,42 @@ function ImportModal({ onClose, onImport }) {
 
         {error && <div style={{color:'#ef476f',fontSize:12,marginBottom:8}}>⚠ {error}</div>}
 
-        {rows && stats && (
+        {rows && stats && detectedDataset && (
           <div style={{
             background:'#111827',borderRadius:8,padding:10,marginBottom:12,fontSize:11,
           }}>
             <div style={{color:'#06d6a0',marginBottom:4}}>✓ {filename} ({stats.total}行)</div>
+            <div style={{color:'#8892b0',marginBottom:4}}>
+              dataset: <span style={{color: DATASETS[detectedDataset].color, fontWeight:700}}>
+                {DATASETS[detectedDataset].emoji} {DATASETS[detectedDataset].name}
+              </span>
+            </div>
             <div style={{color:'#8892b0'}}>
               id: {stats.hasId} / tier: {stats.hasTier} / col_order: {stats.hasOrder}
             </div>
+            {datasetMismatch && (
+              <div style={{color:'#ffd166',marginTop:6,padding:'6px 8px',background:'#ffd16615',borderRadius:6}}>
+                ⚠ 現在のデータセット（{DATASETS[currentDatasetId].shortName}）と異なります。
+                インポート時に自動で <b>{DATASETS[detectedDataset].shortName}</b> に切り替わります。
+              </div>
+            )}
           </div>
         )}
 
         <div style={{fontSize:10,color:'#5a6378',marginBottom:12}}>
-          v0.2スキーマ: <code style={{color:'#ffd166'}}>id, dataset, name, emoji, type, habitat, size, tier, col_order</code><br/>
-          必須: <code>id</code> / 反映: <code>tier</code>, <code>col_order</code> / 未知列は保持（round-trip safe）
+          v0.2スキーマ: <code style={{color:'#ffd166'}}>id, dataset, ...</code><br/>
+          必須: <code>id</code>, <code>dataset</code> / 反映: <code>tier</code>, <code>col_order</code> / 未知列は保持（round-trip safe）
         </div>
 
         <div style={{display:'flex',gap:8,justifyContent:'flex-end'}}>
           <button onClick={onClose} style={{...input,background:'#1e2640',padding:'8px 16px',cursor:'pointer'}}>キャンセル</button>
-          <button onClick={() => rows && onImport(rows)} disabled={!rows} style={{
+          <button onClick={doImport} disabled={!rows} style={{
             padding:'8px 20px',
             background: rows ? '#ffd166' : '#1e2640',
             color: rows ? '#0b0f1a' : '#5a6378',
             border:'none',borderRadius:8,fontWeight:700,
             cursor: rows ? 'pointer' : 'not-allowed',
-          }}>インポート</button>
+          }}>{datasetMismatch ? '切替してインポート' : 'インポート'}</button>
         </div>
       </div>
     </div>
